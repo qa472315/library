@@ -1,52 +1,36 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn,  } from 'typeorm';
 
-@Entity('Borrow')
-export class Book{
+@Entity('borrow')
+export class Borrow{
 
-  @PrimaryColumn({
-    type: 'char',
-    length: 100,
-    nullable: false,
-  })
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({
-    type: 'char',
-    length: 100,
-    nullable: false,
-  })
-  title!: string;
+  @Column({ type: 'uuid' })
+  bookId!: string;
+
+  @Column({ type: 'uuid' })
+  userId!: string;
+
+  // 到期時間
+  @Column({ type: 'timestamptz' })
+  dueAt!: Date;
 
   @Column({
-    type: 'char',
-    nullable: false,
+    type: 'timestamptz',
   })
-  author!: string;
-
-  @Column({
-    default: true
-  })
-  isAvailable!: boolean;
-
-  @Column({
-    type: 'tinyint',
-    default: 0,
-  })
-  borrowCount!: number;
-
-  @Column({
-    type: 'char',
-    nullable: true,
-  })
-  history!: string[];
+  returnedAt!: Date;
 
   @CreateDateColumn({
-    type: 'timestamp',
+    type: 'timestamptz',
   })
   createdAt!: Date;
-
-  @UpdateDateColumn({
-    type: 'timestamp',
-  })
-  updatedAt!: Date;
 }
+
+// 要存 array 時:
+// 可跨 Db, 能存複雜資料, 可索引, 可擴充
+// @Column({
+//   type: 'jsonb',
+//   nullable: true,
+// })
+// history!: string[];

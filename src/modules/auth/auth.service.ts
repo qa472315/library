@@ -70,6 +70,11 @@ export class AuthService {
     //   sub: user.id,
     //   role: user.role
     // }
+    
+    // throw new Error()	500 Internal Server Error
+    // throw new UnauthorizedException()	401
+    // throw new ForbiddenException()	403
+    // throw new NotFoundException()	404
   throw new UnauthorizedException('Invalid credentials');
     // return {
     //   accessToken: this.jwtService.sign( payload, ),

@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/jwtAuthGuard';
 import { RolesGuard } from './modules/auth/roles.guard';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -14,7 +15,8 @@ import { RolesGuard } from './modules/auth/roles.guard';
       isGlobal: true, // 全專案可用
     }),
     BookModule,
-    AuthModule
+    AuthModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [

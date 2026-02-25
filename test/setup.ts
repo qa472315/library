@@ -6,3 +6,5 @@ process.env.JWT_EXPIRES_IN = '15m';
 
 // 如果你用其他 env 變數，也可以這裡補
 process.env.NODE_ENV = 'test';
+process.env.DB_TYPE = 'sqlite';
+process.env.DB_DATABASE = ':memory:';

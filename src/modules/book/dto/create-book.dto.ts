@@ -2,9 +2,9 @@ import { IsString} from 'class-validator';
 
 export class CreateBookDto {
     @IsString()
-    title: string
+    title!: string
 
 
     @IsString()
-    author: string
+    author!: string
 }

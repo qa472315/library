@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Req, UnauthorizedException, Res} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/create-auth.dto';
+import { CreateAuthDto, RegisterDto } from './dto/create-auth.dto';
 import { User } from './decorator/users.controller';
 import { Access, Public } from './decorator/roles.decorator';
 import { Role } from '../../common/utils/enums';
@@ -12,7 +12,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() dto: LoginDto,
+  async login(@Body() dto: CreateAuthDto,
   @Res({ passthrough: true }) res: Response,
   ) {
     // 將 jwt 的 token 塞入 body
@@ -21,12 +21,12 @@ export class AuthController {
     const refreshToken = await this.authService.login(dto.email, dto.password);
     const accessToken = await this.authService.refresh(refreshToken);
     res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // HTTPS 才送
-    sameSite: 'lax',
-    path: '/auth/refresh', // 建議只給 refresh API 用
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
-  });
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS 才送
+      sameSite: 'lax',
+      path: '/auth/refresh', // 建議只給 refresh API 用
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
+    });
     return accessToken;
   }
 
