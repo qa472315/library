@@ -8,15 +8,16 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/jwtAuthGuard';
 import { RolesGuard } from './modules/auth/roles.guard';
 import { DatabaseModule } from './database/database.module';
+import { SessionService } from './modules/auth/session.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true, // 全專案可用
     }),
+    DatabaseModule,  // forRoot() 註冊 DataSource provider, forFeature() 需要 DataSource
     BookModule,
     AuthModule,
-    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [
@@ -29,6 +30,7 @@ import { DatabaseModule } from './database/database.module';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
-    AppService],
+    AppService,
+    SessionService],
 })
 export class AppModule {}

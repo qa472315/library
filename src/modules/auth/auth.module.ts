@@ -5,10 +5,12 @@ import { AuthController } from './auth.controller'
 import { JwtStrategy } from './jwtStrategy'
 import { ConfigService } from '@nestjs/config'
 // import { DatabaseModule } from '../../database/database.module';
-
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../../database/entities/user.entity';
+import { Session } from '../../database/entities/session.entity';
 @Module({
   imports: [
-    // DatabaseModule,
+    TypeOrmModule.forFeature([User, Session]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       // StringValue ≠ string ,  StringValue 是 jsonwebtoken 定義的「受限字串」

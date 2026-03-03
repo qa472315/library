@@ -8,13 +8,19 @@ import { IpChangeRule, CountryChangeRule, PlatformChangeRule, RiskService, RISK_
     PlatformChangeRule,
     // 建立一個「自訂 provider」
     {
+      // 當有人要求 RISK_RULES 這個 token 時，請給他下面 factory 的結果。
       provide: RISK_RULES,
       // useFactory: 不要 new class 而是執行這個 function 來產生值
       useFactory: (
         ip: IpChangeRule,
         country: CountryChangeRule,
         platform: PlatformChangeRule,
-      ) => [ip, country, platform],
+      ) => {
+        // if (configService.isEnterprise()) {
+        //   return [ip, country];
+        // }
+        return [ip, country, platform]
+      },
       // 這個 factory 需要這三個 dependency, Nest 請先把它們準備好再呼叫 factory
       inject: [IpChangeRule, CountryChangeRule, PlatformChangeRule],
     },

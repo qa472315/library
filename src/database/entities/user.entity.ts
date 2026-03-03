@@ -1,20 +1,26 @@
 import { Entity, Column, PrimaryColumn, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-
+import { Role } from '../../common/utils/enums';
 @Entity('user')
 export class User{
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true,type: 'varchar', length: 100 })
+  // 你看到的 ≠ DB 看到的
+  // DB 看到的 ≠ index 看到的
+  @Column({ unique: true, type: 'varchar', length: 100 })
   email_original!: string;
 
-  @Column({ unique: true,type: 'varchar', length: 100 })
-  email_canonical!: string;
+  @Column({ unique: true, type: 'varchar', length: 100 })
+  email_normalized!: string;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 100 })
   password!: string;
 
-  @Column({ default: 'user' })
+  @Column({
+    type: 'enum',
+    enum: Role,
+    default: Role.User,
+  })
   role!: string;
 
   @CreateDateColumn()

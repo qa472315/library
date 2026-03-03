@@ -8,26 +8,18 @@ import { AuthService } from '../src/modules/auth/auth.service'
 import { JwtStrategy } from '../src/modules/auth/jwtStrategy'
 import { AuthModule } from '../src/modules/auth/auth.module'
 import { JwtAuthGuard } from '../src/modules/auth/jwtAuthGuard'
+import { DatabaseModule } from '../src/database/database.module';
 @Module({
   imports: [
     // 測試的環境獨立於原先環境, 所以在 app.module 設的全域 ConfigModule 不能用 
     ConfigModule.forRoot({ isGlobal: true }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: config.getOrThrow<string>('JWT_EXPIRES_IN') as any },
-      }),
-    }),
+    DatabaseModule,
     AuthModule,
   ],
   controllers: [
     TestAccessController
   ],
   providers: [
-    AuthService,
-    JwtStrategy,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

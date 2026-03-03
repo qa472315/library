@@ -9,22 +9,22 @@ export class Session {
   @Column({ type: 'varchar', length: 100 })
   userId!: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   refreshTokenHash!: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 100 })
   deviceId!: string;
 
-  @Column({ type: 'varchar', length: 100, default: null})
+  @Column({ type: 'varchar', length: 100, nullable: true})
   parentTokenId!: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   ipPrefix !: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   deviceFingerprint !: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   replacedBy  !: string;
 
   @Column({ type: 'boolean', default: false })

@@ -19,7 +19,7 @@ export class Borrow{
   @Column({
     type: 'timestamptz',
   })
-  returnedAt!: Date;
+  returnedAt!: Date | null;
 
   @CreateDateColumn({
     type: 'timestamptz',

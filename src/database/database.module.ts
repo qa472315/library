@@ -1,31 +1,28 @@
 import { Module, Global } from '@nestjs/common';
-import { AppDataSource } from './DataSource';
-import { DataSource } from 'typeorm';
-
-let dataSource: DataSource;
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
 @Global()
 @Module({
-  providers: [
-    {
-      provide: 'DATA_SOURCE',
-      useFactory: async () => {
-        // initialize 是 typeorm 自帶用於確認是否已經初始化
-        if (dataSource && dataSource.isInitialized) {
-          return dataSource;
-        }
-
-        dataSource = await AppDataSource.initialize();
-        console.log('DB type =', AppDataSource.options.type);
-        console.log(
-          'entities =',
-          AppDataSource.entityMetadatas.map(e => e.tableName),
-        );
-        console.log('synchronize =', process.env.NODE_ENV);
-        return dataSource;
-      },
-    },
+  imports: [
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        name: 'default',
+        type: 'postgres',
+        host: config.get<string>('DB_HOST'),
+        port: config.get<number>('DB_PORT'),
+        username: config.get<string>('DB_USER'),
+        password: config.get<string>('DB_PASSWORD'),
+        database: config.get<string>('DB_NAME'),
+        // timezone: 'Z', // UTC+0  mysql
+        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+        synchronize: process.env.NODE_ENV !== 'production',
+        extra: {
+          connectionLimit: 200, // 根据需求调整连接池大小
+        },
+      })
+    })
   ],
-  exports: ['DATA_SOURCE'],
 })
 export class DatabaseModule {}

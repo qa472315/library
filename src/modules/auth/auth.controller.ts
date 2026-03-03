@@ -13,13 +13,15 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(@Body() dto: CreateAuthDto,
+  // @Res({ passthrough: true }) → 只能「搭配 Nest 自動 body」
+  // 直接 primitive string → Nest 會當作 text/plain，supertest 解析 JSON 就是 {}
+  // 解決方法 → 回傳物件 { accessToken }
   @Res({ passthrough: true }) res: Response,
   ) {
     // 將 jwt 的 token 塞入 body
     // return this.authService.login(dto.email, dto.password);
     // test
-    const refreshToken = await this.authService.login(dto.email, dto.password);
-    const accessToken = await this.authService.refresh(refreshToken);
+    const {refreshToken, accessToken} = await this.authService.login(dto.email, dto.password);
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS 才送
@@ -27,7 +29,7 @@ export class AuthController {
       path: '/auth/refresh', // 建議只給 refresh API 用
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
     });
-    return accessToken;
+    return {accessToken};
   }
 
   @Public()
@@ -38,10 +40,21 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  refresh(@Req() req: Request,){
-    const refreshToken = req.cookies?.refreshToken;
-    if(!refreshToken) throw new UnauthorizedException('Missing refresh token');
-    return this.authService.refresh(refreshToken);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ){
+    const oldRefreshToken = req.cookies?.refreshToken;
+    if(!oldRefreshToken) throw new UnauthorizedException('Missing refresh token');
+    const { accessToken, refreshToken } = await this.authService.refresh(oldRefreshToken);
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // HTTPS 才送
+      sameSite: 'lax',
+      path: '/auth/refresh', // 建議只給 refresh API 用
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
+    });
+    return {accessToken};
   }
 
   @Access(Role.Admin, Role.User)
