@@ -2,7 +2,6 @@
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { Role } from '../../../src/common/utils/enums';
-import { JwtService } from '@nestjs/jwt';
 
 export async function loginAs(
   app: INestApplication,
@@ -12,11 +11,6 @@ export async function loginAs(
     role === Role.Admin ? 'admin@test.com' : 'user@test.com';
 
   const password = 'password123';
-
-  // const jwtService = app.get(JwtService);
-  // const payload = { sub: email, role }; // role 必須是 Role.User 或 Role.Admin
-  // const token = jwtService.sign(payload);
-  // return token;
 
   const res = await request(app.getHttpServer())
   .post('/auth/login')

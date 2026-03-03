@@ -5,6 +5,7 @@ import { User } from './decorator/users.controller';
 import { Access, Public } from './decorator/roles.decorator';
 import { Role } from '../../common/utils/enums';
 import type { Request, Response } from 'express';
+import { request } from 'http';
 
 @Controller('auth')
 export class AuthController {
@@ -26,7 +27,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS 才送
       sameSite: 'lax',
-      path: '/auth/refresh', // 建議只給 refresh API 用
+      path: '/auth', // 建議只給 refresh API 用
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
     });
     return {accessToken};
@@ -35,7 +36,18 @@ export class AuthController {
   @Public()
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    // return this.authService.register(dto.email, dto.password);
+    return this.authService.register(dto.email, dto.password);
+  }
+
+  @Public()
+  @Post('logout')
+  async logout(@Req() req: Request,) 
+  {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+    return await this.authService.logout(refreshToken);
   }
 
   @Public()
@@ -51,7 +63,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS 才送
       sameSite: 'lax',
-      path: '/auth/refresh', // 建議只給 refresh API 用
+      path: '/auth', // 建議只給 refresh API 用
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
     });
     return {accessToken};

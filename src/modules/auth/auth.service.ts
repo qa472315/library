@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException,} from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException,} from '@nestjs/common';
 import { Repository, DataSource, EntityManager} from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -61,7 +61,7 @@ export class AuthService {
 
       const refreshToken = await this.generateRefreshToken(user.id, user.role, sesion.id);
 
-      sesion.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+      sesion.refreshTokenHash = await bcrypt.hash(refreshToken, this.saltRounds);
 
       await manager.save(Session, sesion);
 
@@ -83,37 +83,52 @@ export class AuthService {
   }
 
   async logout (refreshToken){
-    // this.testToken.splice(this.testToken.indexOf(refreshToken));
+    return await this.dataSource.transaction(async (manager) => {
+    const payload = this.jwtService.verify(refreshToken, {
+      secret: this.config.get('JWT_REFRESH_SECRET'),
+    });
+      await this.revoke(manager, payload.jti);
+      return { success: true }
+    })
   }
 
-  // async register(email: string, password: string) {
-  //   email = email.trim().toLowerCase();
-  //   const exists = await this.userRepository.findOne({
-  //     where: { email },
-  //     select: ['id'],
-  //   });
-  //   if(exists) {
-  //     throw new ConflictException('Email already exists');
-  //   }
-  //   const hashedPassword = await bcrypt.hash(password, this.saltRounds);
-  //   try{
-  //     const newUser = this.userRepository.create({
-  //       email: email,
-  //       password: hashedPassword,
-  //     })
-  //     await this.userRepository.save(newUser);
-  //   } catch (error){
-  //     if (
-  //       typeof error === 'object' &&
-  //       error !== null &&
-  //       'code' in error &&
-  //       (error as any).code === '23505'
-  //     ) {
-  //       throw new ConflictException('Email already exists');
-  //     }
-  //   }
-  //   return { success: true };;
-  // }
+  async register(email: string, password: string) {
+    return await this.dataSource.transaction( async (manager) => {
+      const newEmail = email.trim().toLowerCase();
+    const exists = await manager.findOne(
+      User, 
+      {
+        where: { email_normalized: newEmail },
+        select: ['id'],
+        lock: { mode: 'pessimistic_write' },
+      });
+    if(exists) {
+      throw new ConflictException('Email already exists');
+    }
+    // 之後可以讓前端先傳加密後的密碼再解密
+    const hashedPassword = await bcrypt.hash(password, this.saltRounds);
+    try{
+      const newUser = manager.create(
+        User,
+      {
+        email_original: email,
+        email_normalized: newEmail,
+        password: hashedPassword,
+      },)
+      await this.userRepository.save(newUser);
+    } catch (error){
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as any).code === '23505'
+      ) {
+        throw new ConflictException('Email already exists');
+      }
+    }
+    return { success: true };;
+    })
+  }
 
   async revoke(manager: EntityManager, jti: string){
     await manager.update(
@@ -199,7 +214,7 @@ export class AuthService {
     let date = new Date();
     return await manager.save(Session,{
       userId: userId,
-      // refreshTokenHash: await bcrypt.hash(refreshToken, 10),
+      // refreshTokenHash: await bcrypt.hash(refreshToken, this.saltRounds),
       deviceId: 'test',
       parentTokenId: parentTokenId,
       ipPrefix: 'test',
@@ -241,7 +256,7 @@ export class AuthService {
       // 建立新 session
       const newSession = await this.createSession(manager, userId, oldSession.id);
       const newRefreshToken = await this.generateRefreshToken(userId, role, newSession.id);
-      newSession.refreshTokenHash = await bcrypt.hash(newRefreshToken, 10);
+      newSession.refreshTokenHash = await bcrypt.hash(newRefreshToken, this.saltRounds);
       await manager.save(Session, newSession);
       // 標記舊 token 被替換
       oldSession.replacedBy = newSession.id;
