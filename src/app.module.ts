@@ -8,7 +8,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/jwtAuthGuard';
 import { RolesGuard } from './modules/auth/roles.guard';
 import { DatabaseModule } from './database/database.module';
-import { SessionService } from './modules/auth/session.service';
 
 @Module({
   imports: [
@@ -31,6 +30,6 @@ import { SessionService } from './modules/auth/session.service';
       useClass: RolesGuard,
     },
     AppService,
-    SessionService],
+    ],
 })
 export class AppModule {}

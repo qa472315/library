@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException, ConflictException,} from '@nestjs/common';
-import { Repository, DataSource, EntityManager} from 'typeorm';
+import { Repository, DataSource, EntityManager,} from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../../database/entities/user.entity';
@@ -17,10 +17,10 @@ export class AuthService {
     private dataSource: DataSource,
     // @Inject('DATA_SOURCE')
     // private readonly dataSource: DataSource,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Session)
-    private readonly sessionRepository: Repository<Session>,
+    // @InjectRepository(User)
+    // private readonly userRepository: Repository<User>,
+    // @InjectRepository(Session)
+    // private readonly sessionRepository: Repository<Session>,
   ) {
     // this.userRepository = this.dataSource.getRepository(User);
   }
@@ -115,7 +115,7 @@ export class AuthService {
         email_normalized: newEmail,
         password: hashedPassword,
       },)
-      await this.userRepository.save(newUser);
+      await manager.save(User ,newUser);
     } catch (error){
       if (
         typeof error === 'object' &&
@@ -211,7 +211,6 @@ export class AuthService {
   }
 
   async createSession(manager: EntityManager,userId: string, parentTokenId: string){
-    let date = new Date();
     return await manager.save(Session,{
       userId: userId,
       // refreshTokenHash: await bcrypt.hash(refreshToken, this.saltRounds),
@@ -219,7 +218,7 @@ export class AuthService {
       parentTokenId: parentTokenId,
       ipPrefix: 'test',
       deviceFingerprint: 'test',
-      expiresAt: new Date(date.setDate(new Date().getDate() +7))
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     })
   }
 

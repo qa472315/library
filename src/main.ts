@@ -19,6 +19,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  // 有這個才能讀 req.cookies
   app.use(cookieParser());
   // CORS（如果前後端不同網域）
   // app.enableCors({

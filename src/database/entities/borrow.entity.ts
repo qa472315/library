@@ -1,4 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn,  } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn,} from 'typeorm';
+import { Book } from './book.entity';
+import { User } from './user.entity';
 
 @Entity('borrow')
 export class Borrow{
@@ -6,11 +8,13 @@ export class Borrow{
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
-  bookId!: string;
+  @ManyToOne(() => Book, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'bookId' })
+  book!: string;
 
-  @Column({ type: 'uuid' })
-  userId!: string;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user!: string;
 
   // 到期時間
   @Column({ type: 'timestamptz' })
@@ -18,6 +22,7 @@ export class Borrow{
 
   @Column({
     type: 'timestamptz',
+    nullable: true,
   })
   returnedAt!: Date | null;
 

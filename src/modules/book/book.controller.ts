@@ -30,12 +30,12 @@ export class BookController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '借閱書籍' })
   borrow(@Param('id') id: string) {
-    return this.bookService.borrow(id);
+    // return this.bookService.borrow(id);
   }
 
   @Post(':id/return')
   @ApiOperation({ summary: '歸還書籍' })
   return(@Param('id') id: string) {
-    return this.bookService.return(id);
+    // return this.bookService.return(id);
   }
 }

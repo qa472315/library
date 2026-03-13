@@ -14,8 +14,8 @@ export class Book {
   @Column({ type: 'varchar', length: 100 })
   author!: string;
 
-  @Column({ type: 'boolean', default: true })
-  isAvailable!: boolean;
+  // @Column({ type: 'boolean', default: true })
+  // isAvailable!: boolean;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
