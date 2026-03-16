@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 import { Session } from '../../src/database/entities/session.entity';
 import { seed } from '../seed';
 import cookieParser from 'cookie-parser';
+import Redis from 'ioredis';
 
 export async function changeRole(app: INestApplication, role: Role){
 }
@@ -158,6 +159,15 @@ describe('Access Control (e2e)', () => {
   
   // 關閉 Nest app, 釋放 DB 連線, 防止 Jest open handle error
   afterAll(async () => {
+    // @nestjs-modules/ioredis 其實做的是：provide: 'default_IORedisModuleConnectionToken' useFactory: () => new Redis(...)
+    const redis = app.get<Redis>('default_IORedisModuleConnectionToken');
+    const dataSource = app.get(DataSource);
+    if (redis.status !== 'end') {
+      await redis.quit(); // 關閉 Redis
+    }
+    if (dataSource.isInitialized) {
+      await dataSource.destroy();
+    }
     await app.close();
   })
 });

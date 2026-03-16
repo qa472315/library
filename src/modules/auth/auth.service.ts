@@ -4,10 +4,11 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '../../database/entities/user.entity';
 import { Session } from '../../database/entities/session.entity';
-import { Role } from '../../common/utils/enums';
+// import { Role } from '../../common/utils/enums';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-
+// import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
 @Injectable()
 export class AuthService {
   // private readonly userRepository: Repository<User>;
@@ -21,6 +22,8 @@ export class AuthService {
     // private readonly userRepository: Repository<User>,
     // @InjectRepository(Session)
     // private readonly sessionRepository: Repository<Session>,
+    @InjectRedis()
+    private readonly redis: Redis,
   ) {
     // this.userRepository = this.dataSource.getRepository(User);
   }
@@ -57,18 +60,29 @@ export class AuthService {
       //   sub: user.id,
       //   role: user.role
       // }
-      const sesion = await this.createSession(manager, user.id, "Null");
+      const session = await this.createSession(manager, user.id, "Null");
 
-      const refreshToken = await this.generateRefreshToken(user.id, user.role, sesion.id);
+      const refreshToken = await this.generateRefreshToken(user.id, user.role, session.id);
 
-      sesion.refreshTokenHash = await bcrypt.hash(refreshToken, this.saltRounds);
+      session.refreshTokenHash = await bcrypt.hash(refreshToken, this.saltRounds);
 
-      await manager.save(Session, sesion);
+      await manager.save(Session, session);
 
       const accessToken = await this.generateAccessToken(
         user.id,
         user.role,
+        session.id
       );
+
+      await this.createRedisSession(session.id,user.id,);
+      // await this.redis.set(
+      //   `session:${session.id}`,
+      //   user.id,
+      //   'EX',
+      //   60 * 60 * 24 * 7,
+      // );
+      // 把這個 session id 加入 user 的 session list ,例: userSessions:123 = {jti1,jti2,jti3,}
+      await this.redis.sadd(`userSessions:${user.id}`, session.id);
       
       return {refreshToken: refreshToken, accessToken: accessToken};
       // throw new Error()	500 Internal Server Error
@@ -136,6 +150,13 @@ export class AuthService {
       { id: jti},
       { revoked: true}
     )
+    await this.redis.del(`session:${jti}`);
+    await this.redis.set(
+      `revoked:${jti}`,
+      "1",
+      "EX",
+      60 * 60 * 24 * 7
+    );
   }
 
   async revokeAll(manager: EntityManager,userId: string){
@@ -144,6 +165,14 @@ export class AuthService {
       { userId: userId},
       { revoked: true}
     )
+    // smembers 找出所有成員
+    const sessions = await this.redis.smembers(`userSessions:${userId}`);
+    const pipeline = this.redis.pipeline();
+    sessions.forEach(jti => {
+      pipeline.del(`session:${jti}`);
+    });
+    await pipeline.exec();
+    await this.redis.del(`userSessions:${userId}`);
   }
 
   // private testToken:string[] = [];
@@ -153,7 +182,7 @@ export class AuthService {
         secret: this.config.get('JWT_REFRESH_SECRET')
       })
 
-      const newRefreshToken = await this.rotateSession(
+      const {newRefreshToken: newRefreshToken, newSessionId: newSessionId} = await this.rotateSession(
         payload.jti,
         payload.sub,
         payload.role,
@@ -163,6 +192,7 @@ export class AuthService {
       const newAccessToken = await this.generateAccessToken(
         payload.sub,
         payload.role,
+        newSessionId
       );
 
       return {
@@ -178,10 +208,10 @@ export class AuthService {
     
   }
 
-  async generateAccessToken(userId: string, role: string){
+  async generateAccessToken(userId: string, role: string, sessionId: string){
     try {
       return this.jwtService.sign(    
-        { sub: userId, role: role },
+        { sub: userId, role: role, jti: sessionId },
         {
           secret: this.config.get('JWT_SECRET'),
           expiresIn: '15m',
@@ -222,22 +252,60 @@ export class AuthService {
     })
   }
 
+  async createRedisSession(sessionId: string, userId: string){
+    await this.redis.set(
+      `session:${sessionId}`,
+      userId,
+      'EX',
+      60 * 60 * 24 * 7,
+    );
+  }
+
   // 有 rotate 後, refresh token 是「可疑憑證」, 非「長期身份」
   // 防止 token replay, 防止被偷 refresh token, 可偵測 reuse 攻擊
   async rotateSession(oldJti: string, userId: string, role: string, refreshToken: string){
+      // lock 鎖住 oldJti
+      const lockKey = `lock:refresh:${oldJti}`
+      // 只在 key 不存在時設定,並設定 5 秒過期
+      // SET key value EX seconds NX
+      const locked = await this.redis.set(
+        lockKey,
+        "1",
+        "EX",
+        5,
+        "NX"
+      )
+
+      if (!locked) {
+        throw new UnauthorizedException("refresh already used")
+      }
     return await this.dataSource.transaction(async (manager) => {
+
+      const revoked = await this.redis.exists(`revoked:${oldJti}`)
+
+      if (revoked) {
+        await this.revokeAll(manager, userId);
+        throw new UnauthorizedException('Token reuse detected')
+      }
+
+      const exists = await this.redis.exists(`session:${oldJti}`);
+
+      if (!exists) {
+        throw new UnauthorizedException('Session revoked');
+      }
+
       const oldSession = await manager.findOne(Session,{
         where: { id: oldJti },
         lock: { mode: 'pessimistic_write' }, // 悲觀鎖, 避免兩個 refresh 同時來, 都讀到 oldSession.revoked = false, 都成功 rotate, 產生兩條 chain
       });
-    
+
       // 要和　Redis 的再對比
       if (!oldSession) {
         throw new UnauthorizedException('Token reuse detected');
       }
-      if (oldSession.expiresAt < new Date()) {
-        throw new UnauthorizedException('Expired');
-      }
+      // if (exists.expiresAt < new Date()) {
+      //   throw new UnauthorizedException('Expired');
+      // }
       if(oldSession.revoked){
         await this.revokeAll(manager, oldSession.userId);
         throw new UnauthorizedException('Token reuse detected');
@@ -261,7 +329,21 @@ export class AuthService {
       oldSession.replacedBy = newSession.id;
       oldSession.revoked = true;
       await manager.save(Session, oldSession);
-      return newRefreshToken;
+      
+      await this.redis.set(
+        `revoked:${oldJti}`,
+        "1",
+        "EX",
+        60 * 60 * 24 * 7
+      );
+      await this.createRedisSession(newSession.id,userId,);
+      // await this.redis.set(
+      //   `session:${newSession.id}`,
+      //   userId,
+      //   'EX',
+      //   60 * 60 * 24 * 7,
+      // );
+      return {newRefreshToken: newRefreshToken, newSessionId: newSession.id};
     })
   }
 
