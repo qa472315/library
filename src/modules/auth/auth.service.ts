@@ -16,6 +16,7 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private dataSource: DataSource,
+    // TypeOrmModule.forRoot 時不要用 @Inject('DATA_SOURCE') 不然會有兩個 DataSource, transaction 壞掉
     // @Inject('DATA_SOURCE')
     // private readonly dataSource: DataSource,
     // @InjectRepository(User)
@@ -27,7 +28,8 @@ export class AuthService {
   ) {
     // this.userRepository = this.dataSource.getRepository(User);
   }
-  // bcrypt.hash(password, saltRounds) saltRounds = hash 計算要「慢幾倍」的開關, 數字每 +1，運算時間大約 ×2, cost = 2 ^ saltRounds 次的 key expansion
+  // bcrypt.hash(password, saltRounds) 
+  // saltRounds = hash 計算要「慢幾倍」的開關, 數字每 +1，運算時間大約 ×2, cost = 2 ^ saltRounds 次的 key expansion
   private readonly saltRounds = 10;
   async login(email: string, password: string) {
     return await this.dataSource.transaction(async (manager) => {

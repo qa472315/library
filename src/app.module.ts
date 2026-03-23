@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BookModule } from './modules/book/book.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { ConfigService, ConfigModule } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './modules/auth/jwtAuthGuard';
 import { RolesGuard } from './modules/auth/roles.guard';
@@ -16,6 +16,7 @@ import { InfraRedisModule } from './infra/redis/infraRedis.module';
       isGlobal: true, // 全專案可用
     }),
     InfraRedisModule,
+    // 移去 infra/redis
     // RedisModule.forRootAsync({
     //   inject: [ConfigService],
     //   useFactory: (config: ConfigService) => ({
