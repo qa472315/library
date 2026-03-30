@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UnauthorizedException, Res} from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UnauthorizedException, Res,} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto, RegisterDto } from './dto/create-auth.dto';
 import { User } from './decorator/users.controller';
@@ -75,13 +75,14 @@ export class AuthController {
     const oldRefreshToken = req.cookies?.refreshToken;
     if(!oldRefreshToken) throw new UnauthorizedException('Missing refresh token');
     const { accessToken, refreshToken } = await this.authService.refresh(oldRefreshToken);
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS 才送
-      sameSite: 'lax',
-      path: '/auth', // 建議只給 refresh API 用
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
-    });
+    res.cookie('refreshToken', refreshToken, this.getCookieOptions());
+    // res.cookie('refreshToken', refreshToken, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production', // HTTPS 才送
+    //   sameSite: 'lax',
+    //   path: '/auth', // 建議只給 refresh API 用
+    //   maxAge: 1000 * 60 * 60 * 24 * 7, // 7 天
+    // });
     return {accessToken};
   }
 

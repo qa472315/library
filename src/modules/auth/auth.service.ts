@@ -332,6 +332,7 @@ export class AuthService {
       oldSession.revoked = true;
       await manager.save(Session, oldSession);
       
+      // 7天后自動刪除
       await this.redis.set(
         `revoked:${oldJti}`,
         "1",

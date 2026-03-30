@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 @Global()
 @Module({
   imports: [
+    // 建立 全域 TypeORM DataSource
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

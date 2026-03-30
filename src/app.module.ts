@@ -10,6 +10,7 @@ import { RolesGuard } from './modules/auth/roles.guard';
 import { DatabaseModule } from './database/database.module';
 // import { RedisModule } from '@nestjs-modules/ioredis';
 import { InfraRedisModule } from './infra/redis/infraRedis.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({

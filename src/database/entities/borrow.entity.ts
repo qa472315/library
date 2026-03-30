@@ -1,22 +1,25 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn,} from 'typeorm';
-import { Book } from './book.entity';
-import { User } from './user.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index, } from 'typeorm';
 
 @Entity('borrow')
+// PostgreSQL 專用
+@Index('uniq_active_borrow', ['bookId'], {
+  unique: true,
+  where: `"returnedAt" IS NULL`,
+})
+@Index(['userId','returnedAt'])
 export class Borrow{
 
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Book, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'bookId' })
-  book!: string;
+  @Column()
+  bookId!: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user!: string;
+  @Column()
+  userId!: string;
 
   // 到期時間
+  @Index()
   @Column({ type: 'timestamptz' })
   dueAt!: Date;
 

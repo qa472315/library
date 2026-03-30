@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Unique } from 'typeorm';
 
 @Entity('books')
+@Unique(['title','author'])
 export class Book {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -14,13 +15,14 @@ export class Book {
   @Column({ type: 'varchar', length: 100 })
   author!: string;
 
+  // 這個判斷轉給 Borrow 
   // @Column({ type: 'boolean', default: true })
   // isAvailable!: boolean;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
 
   @DeleteDateColumn()
