@@ -10,12 +10,13 @@ import { RolesGuard } from './modules/auth/roles.guard';
 import { DatabaseModule } from './database/database.module';
 // import { RedisModule } from '@nestjs-modules/ioredis';
 import { InfraRedisModule } from './infra/redis/infraRedis.module';
-
+import { ScheduleModule } from '@nestjs/schedule'
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true, // 全專案可用
     }),
+    ScheduleModule.forRoot(),
     InfraRedisModule,
     // 移去 infra/redis
     // RedisModule.forRootAsync({
