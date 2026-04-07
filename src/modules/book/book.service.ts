@@ -122,7 +122,12 @@ export class BookService {
       try{
         await manager.save(borrow)
         // Redis INCR 是 atomic
-        await this.redis.incr(`book:borrow:${bookId}`)
+        // await this.redis.incr(`book:borrow:${bookId}`)
+        const countKey = `book:borrow:${bookId}`
+        await this.redis.pipeline()
+          .incr(countKey)
+          .sadd('book:borrow:keys', bookId)
+          .exec()
       }catch(e){
         throw new ConflictException('Book already borrowed')
       }

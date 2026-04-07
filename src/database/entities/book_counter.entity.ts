@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryColumn, UpdateDateColumn, Index } from 'typeorm';
 
 @Entity('book_counter')
-@Index('idx_borrow_count', ['borrowCount','bookId'])
+@Index('idx_borrow_count', ['borrowCount'])
 export class BookCounter {
   @PrimaryColumn()
   bookId!: string;
