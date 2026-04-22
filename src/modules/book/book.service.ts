@@ -66,8 +66,23 @@ export class BookService {
     return book;
   }
 
-  async findTop10(){
-    // result = [member, score, member, score, member, score]
+  async fallbackTop10() {
+  return await this.bookRepository
+    .createQueryBuilder('book')
+    .leftJoin('book_counter', 'bc', 'bc.bookId = book.id')
+    .select([
+      'book.id',
+      'book.title',
+      'book.author',
+      'bc.count'
+    ])
+    .orderBy('bc.count', 'DESC')
+    .limit(10)
+    .getRawMany()
+}
+
+  async getTop10FromLeaderboard(){
+   // result = [member, score, member, score, member, score]
     const result = await this.redis.zrevrange(
       'borrow:leaderboard',
       0,
@@ -110,6 +125,84 @@ export class BookService {
       }
     })
     .filter((v): v is NonNullable<typeof v> => v !== null)
+  }
+
+  async findTop10(){
+    const key = 'top10_books:v1'
+    const cach = await this.redis.get(key);
+    if(cach) return JSON.parse(cach)
+
+    const lock = await this.redis.set(
+      'lock:top10:book',
+      1,
+      'EX',
+      5,
+      'NX'
+    )
+    if(!lock){
+      await new Promise(r=>setTimeout(r,50))
+      const retry = await this.redis.get(key)
+      if(retry) return JSON.parse(retry)
+    }
+
+    try {
+      const result = await this.getTop10FromLeaderboard();
+      await this.redis.set(
+        key,
+        JSON.parse(result),
+        'EX',
+        60
+      )
+
+      return 
+    } catch {
+      return await this.fallbackTop10()
+    } finally {
+      await this.redis.del(key)
+    }
+  //   // result = [member, score, member, score, member, score]
+  //   const result = await this.redis.zrevrange(
+  //     'borrow:leaderboard',
+  //     0,
+  //     9,
+  //     'WITHSCORES'
+  //   )
+  //   const leaderboard:any = []
+
+  //   for(let i=0;i<result.length;i+=2){
+  //     leaderboard.push({
+  //       bookId: result[i],
+  //       borrowCount: Number(result[i+1]),
+  //       rank: i/2 + 1
+  //     })
+
+  //   }
+  //   const ids = leaderboard.map(b => b.bookId)
+
+  //   const books = await this.bookRepository
+  //   .createQueryBuilder('book')
+  //   .where('book.id IN (:...ids)', ids)
+  //   .getMany()
+
+  //   // const bookMap = new Map();
+  //   // for(let book of books){
+  //   //   bookMap.set(book.id, book)
+  //   // }
+  //   const bookMap = new Map(
+  //     books.map(book=>[book.id,book])
+  //   )
+  //   return leaderboard.map(r=>{
+  //     const book = bookMap.get(r.bookId)
+  //     if(!book) return null
+  //     return {
+  //       rank: r.rank,
+  //       borrowCount:r.count,
+  //       bookId:book.id,
+  //       title:book.title,
+  //       author:book.author
+  //     }
+  //   })
+  //   .filter((v): v is NonNullable<typeof v> => v !== null)
     
     // const key = 'top10_books:v1'
     // const cache = await this.redis.get(key);
@@ -184,7 +277,7 @@ export class BookService {
     })
   }
 
-  async return(user: User ,id: string): Promise<Borrow> {
+  async returnBook(user: User ,id: string): Promise<Borrow> {
     return await this.dataSource.transaction( async (manager) => {
       const borrow = await manager.findOne(
         Borrow,
