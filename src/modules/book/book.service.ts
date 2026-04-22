@@ -69,14 +69,12 @@ export class BookService {
   async fallbackTop10() {
   return await this.bookRepository
     .createQueryBuilder('book')
-    .leftJoin('book_counter', 'bc', 'bc.bookId = book.id')
-    .select([
-      'book.id',
-      'book.title',
-      'book.author',
-      'bc.count'
-    ])
-    .orderBy('bc.count', 'DESC')
+    .leftJoin(BookCounter, 'bc', 'bc.bookId = book.id')
+    .select('book.id', 'id')
+    .addSelect('book.title', 'title')
+    .addSelect('book.author', 'author')
+    .addSelect('bc.borrowCount', 'borrowCount')
+    .orderBy('bc.borrowCount', 'DESC')
     .limit(10)
     .getRawMany()
 }
@@ -100,7 +98,7 @@ export class BookService {
 
     }
     const ids = leaderboard.map(b => b.bookId)
-
+    if (!ids.length) return [];
     const books = await this.bookRepository
     .createQueryBuilder('book')
     .where('book.id IN (:...ids)', ids)
@@ -118,7 +116,7 @@ export class BookService {
       if(!book) return null
       return {
         rank: r.rank,
-        borrowCount:r.count,
+        borrowCount:r.borrowCount,
         bookId:book.id,
         title:book.title,
         author:book.author
@@ -129,8 +127,8 @@ export class BookService {
 
   async findTop10(){
     const key = 'top10_books:v1'
-    const cach = await this.redis.get(key);
-    if(cach) return JSON.parse(cach)
+    const cache = await this.redis.get(key);
+    if(cache) return JSON.parse(cache)
 
     const lock = await this.redis.set(
       'lock:top10:book',
@@ -149,16 +147,17 @@ export class BookService {
       const result = await this.getTop10FromLeaderboard();
       await this.redis.set(
         key,
-        JSON.parse(result),
+        JSON.stringify(result),
         'EX',
         60
       )
 
-      return 
-    } catch {
+      return result
+    } catch (e) {
+      console.error(e)
       return await this.fallbackTop10()
     } finally {
-      await this.redis.del(key)
+      await this.redis.del('lock:top10:book')
     }
   //   // result = [member, score, member, score, member, score]
   //   const result = await this.redis.zrevrange(
@@ -260,18 +259,22 @@ export class BookService {
         await manager.save(borrow)
         // Redis INCR 是 atomic
         // await this.redis.incr(`book:borrow:${bookId}`)
-        // const countKey = `book:borrow:${bookId}`
-        await this.redis.zincrby(
-          'borrow:leaderboard',
-          1,
-          bookId
-        )
-        // await this.redis.pipeline()
-          // .incr(countKey)
-          // .sadd('book:borrow:keys', bookId)
-          // .exec()
-      }catch(e){
-        throw new ConflictException('Book already borrowed')
+        const countKey = `book:borrow:${bookId}`
+        // await this.redis.zincrby(
+        //   'borrow:leaderboard',
+        //   1,
+        //   bookId
+        // )
+        await this.redis.pipeline()
+          .incr(countKey)
+          .sadd('book:borrow:keys', bookId)
+          .zincrby('borrow:leaderboard',1,bookId)
+          .exec()
+      }catch(e:any){
+        if(e.code === '23505'){
+          throw new ConflictException('Book already borrowed')
+        }
+        throw e
       }
       return borrow;
     })
