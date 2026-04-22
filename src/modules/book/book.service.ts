@@ -67,38 +67,82 @@ export class BookService {
   }
 
   async findTop10(){
-    const key = 'top10_books:v1'
-    const cache = await this.redis.get(key);
-    if(cache) return JSON.parse(cache); 
+    // result = [member, score, member, score, member, score]
+    const result = await this.redis.zrevrange(
+      'borrow:leaderboard',
+      0,
+      9,
+      'WITHSCORES'
+    )
+    const leaderboard:any = []
 
-    // 防 cache stampede/cache avalanche
-    const lock = await this.redis.set(
-      'lock:top10',
-      '1',
-      'EX',
-      5,
-      'NX',
-      )
-    if(!lock){
-      await new Promise(r=>setTimeout(r,50))
-      const retry = await this.redis.get(key)
-      if(retry) return JSON.parse(retry)
+    for(let i=0;i<result.length;i+=2){
+      leaderboard.push({
+        bookId: result[i],
+        borrowCount: Number(result[i+1]),
+        rank: i/2 + 1
+      })
+
     }
-    //因為 PGSQL 的 COUNT() 成本很高,所以要避免出現
-    const query = await this.bookRepository.createQueryBuilder('book')
-    .leftJoin(BookCounter, 'b', 'b.bookId = book.id')
-    .select('book.id', 'id')
-    .addSelect('book.author', 'author')
-    .addSelect('book.title', 'title')
-    .addSelect('b.borrowCount', 'amount')
-    .orderBy('b.borrowCount', 'DESC')
-    .addOrderBy('book.id', 'ASC')
-    .limit(10)
-    .getRawMany();
-    // TTL 隨機化:避免全部同時過期
-    const ttl = 600 + Math.floor(Math.random() * 30)
-    await this.redis.set(key, JSON.stringify(query), 'EX', ttl);
-    return query;
+    const ids = leaderboard.map(b => b.bookId)
+
+    const books = await this.bookRepository
+    .createQueryBuilder('book')
+    .where('book.id IN (:...ids)', ids)
+    .getMany()
+
+    // const bookMap = new Map();
+    // for(let book of books){
+    //   bookMap.set(book.id, book)
+    // }
+    const bookMap = new Map(
+      books.map(book=>[book.id,book])
+    )
+    return leaderboard.map(r=>{
+      const book = bookMap.get(r.bookId)
+      if(!book) return null
+      return {
+        rank: r.rank,
+        borrowCount:r.count,
+        bookId:book.id,
+        title:book.title,
+        author:book.author
+      }
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null)
+    
+    // const key = 'top10_books:v1'
+    // const cache = await this.redis.get(key);
+    // if(cache) return JSON.parse(cache); 
+
+    // // 防 cache stampede/cache avalanche
+    // const lock = await this.redis.set(
+    //   'lock:top10',
+    //   '1',
+    //   'EX',
+    //   5,
+    //   'NX',
+    //   )
+    // if(!lock){
+    //   await new Promise(r=>setTimeout(r,50))
+    //   const retry = await this.redis.get(key)
+    //   if(retry) return JSON.parse(retry)
+    // }
+    // //因為 PGSQL 的 COUNT() 成本很高,所以要避免出現
+    // const query = await this.bookRepository.createQueryBuilder('book')
+    // .leftJoin(BookCounter, 'b', 'b.bookId = book.id')
+    // .select('book.id', 'id')
+    // .addSelect('book.author', 'author')
+    // .addSelect('book.title', 'title')
+    // .addSelect('b.borrowCount', 'amount')
+    // .orderBy('b.borrowCount', 'DESC')
+    // .addOrderBy('book.id', 'ASC')
+    // .limit(10)
+    // .getRawMany();
+    // // TTL 隨機化:避免全部同時過期
+    // const ttl = 600 + Math.floor(Math.random() * 30)
+    // await this.redis.set(key, JSON.stringify(query), 'EX', ttl);
+    // return query;
   }
 
   async borrow(user: User ,bookId: string):Promise<Borrow> {
@@ -123,11 +167,16 @@ export class BookService {
         await manager.save(borrow)
         // Redis INCR 是 atomic
         // await this.redis.incr(`book:borrow:${bookId}`)
-        const countKey = `book:borrow:${bookId}`
-        await this.redis.pipeline()
-          .incr(countKey)
-          .sadd('book:borrow:keys', bookId)
-          .exec()
+        // const countKey = `book:borrow:${bookId}`
+        await this.redis.zincrby(
+          'borrow:leaderboard',
+          1,
+          bookId
+        )
+        // await this.redis.pipeline()
+          // .incr(countKey)
+          // .sadd('book:borrow:keys', bookId)
+          // .exec()
       }catch(e){
         throw new ConflictException('Book already borrowed')
       }

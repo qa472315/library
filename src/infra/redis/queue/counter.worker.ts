@@ -13,6 +13,7 @@ export class CountWorker{
   // 每 10000 ms = 10 s 執行一次
   @Interval(600000)
   async flushCounter(){
+    // KEYS 會掃描整個 Redis
     // const keys = await this.redis.keys('book:borrow:*');
     const ids = await this.redis.smembers('book:borrow:keys')
     if(!ids.length) return 
@@ -26,6 +27,7 @@ export class CountWorker{
     ids.forEach((id,i) => {
       const count =  Number(counts[i]) || 0
       // 為什麼 *2 ? 因為一筆資料有 2個欄位
+      // [member, score, member, score, member, score]
       const idx = i * 2
       placeholders.push(`($${idx+1},$${idx+2})`)   // placeholders.join(',') => ($1,$2),($3,$4),($5,$6)
       params.push(id, count)
